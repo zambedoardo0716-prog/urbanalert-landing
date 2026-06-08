@@ -1,3 +1,8 @@
+import { Analytics } from '@vercel/analytics/react'
+<body>
+  {children}
+  <Analytics />
+</body>
 import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
 import "./globals.css";
