@@ -31,6 +31,8 @@ const dailyProblems = [
   ["Manca una visione condivisa tra gli uffici", Users, "Ogni settore può avere informazioni diverse sulla stessa situazione."],
 ];
 
+const presentationMailto = "mailto:INSERISCI_EMAIL?subject=Richiesta%20presentazione%20UrbanAlert";
+
 const audiences = [
   ["Cittadini", UserRound, "Segnalano e seguono gli interventi."],
   ["Uffici tecnici", Wrench, "Ricevono richieste complete e ordinate."],
@@ -72,6 +74,10 @@ function Button({ children, secondary = false, onClick }: { children: React.Reac
   return <button onClick={onClick} className={secondary ? "button button-secondary" : "button button-primary"}>{children}</button>;
 }
 
+function ContactLink({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
+  return <a href={presentationMailto} className={light ? "button button-light" : "button button-secondary"}>{children}</a>;
+}
+
 function MiniMap({ large = false }: { large?: boolean }) {
   return (
     <div className={`map-grid relative overflow-hidden ${large ? "h-full min-h-[430px]" : "h-40 rounded-2xl"}`}>
@@ -88,13 +94,23 @@ function MiniMap({ large = false }: { large?: boolean }) {
 function Dashboard({ compact = false }: { compact?: boolean }) {
   const [active, setActive] = useState(1);
   const [filter, setFilter] = useState("Tutte");
-  const [resolved, setResolved] = useState(false);
-  const visible = reports.filter((r) => filter === "Tutte" || r.category === filter);
-  const selected = reports[active];
+  const [dashboardReports, setDashboardReports] = useState(reports);
+  const [success, setSuccess] = useState(false);
+  const visible = dashboardReports.filter((r) => filter === "Tutte" || r.category === filter);
+  const selected = dashboardReports[active];
+  const newlyClosed = dashboardReports.filter((report, index) => report.status === "Risolta" && reports[index].status !== "Risolta").length;
+  const openReports = 24 - newlyClosed;
   const statusSteps = selected.status === "Risolta" ? ["Ricevuta", "Presa in carico", "Risolta"] : selected.status === "Presa in carico" ? ["Ricevuta", "Presa in carico"] : ["Ricevuta"];
   const notificationText = selected.status === "Risolta" ? `La segnalazione ${selected.id} è stata risolta.` : selected.status === "Presa in carico" ? `La segnalazione ${selected.id} è stata assegnata a ${selected.office.toLowerCase()}.` : `La segnalazione ${selected.id} è stata ricevuta dal Comune.`;
+  const resolveSelected = () => {
+    if (selected.status === "Risolta") return;
+    setDashboardReports((current) => current.map((report, index) => index === active ? { ...report, status: "Risolta" } : report));
+    setSuccess(true);
+    window.setTimeout(() => setSuccess(false), 3200);
+  };
   return (
     <div className={`dashboard-shell ${compact ? "pointer-events-none select-none" : ""}`}>
+      <AnimatePresence>{success && <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="absolute right-3 top-14 z-20 flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-[9px] font-bold text-emerald-700 shadow-lg"><CheckCircle2 size={13} /> Segnalazione chiusa e cittadino aggiornato</motion.div>}</AnimatePresence>
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <Logo /><div className="flex items-center gap-2"><span className="hidden text-xs font-semibold text-slate-500 sm:block">Comune di Bellavista</span><div className="grid size-8 place-items-center rounded-full bg-navy text-[10px] font-bold text-white">UT</div></div>
       </div>
@@ -102,11 +118,11 @@ function Dashboard({ compact = false }: { compact?: boolean }) {
         <MiniMap large />
         <div className="border-l border-slate-200 bg-white">
           <div className="border-b border-slate-200 p-4">
-            <div className="mb-3 flex items-center justify-between"><div><p className="text-[11px] font-bold uppercase tracking-[.13em] text-green">Ufficio tecnico</p><h3 className="font-display text-lg font-extrabold text-navy">Segnalazioni</h3></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">24 aperte</span></div>
+            <div className="mb-3 flex items-center justify-between"><div><p className="text-[11px] font-bold uppercase tracking-[.13em] text-green">Ufficio tecnico</p><h3 className="font-display text-lg font-extrabold text-navy">Segnalazioni</h3></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{openReports} aperte</span></div>
             <div className="flex gap-2 overflow-x-auto pb-1">{["Tutte", "Strade", "Illuminazione", "Verde", "Acqua"].map((item) => <button key={item} onClick={() => setFilter(item)} className={`filter-chip ${filter === item ? "filter-active" : ""}`}>{item}</button>)}</div>
           </div>
           <div className="max-h-[350px] space-y-2 overflow-auto p-3">
-            {visible.map((report) => <button key={report.id} onClick={() => setActive(reports.indexOf(report))} className={`report-row ${selected.id === report.id ? "report-active" : ""}`}>
+            {visible.map((report) => <button key={report.id} onClick={() => { setActive(dashboardReports.indexOf(report)); setSuccess(false); }} className={`report-row ${selected.id === report.id ? "report-active" : ""}`}>
               <span className={`issue-dot dot-${report.color}`} /><span className="min-w-0 flex-1 text-left"><span className="block truncate text-xs font-bold text-navy">{report.title}</span><span className="block truncate text-[10px] text-slate-500">{report.id} · {report.place}</span></span><span className={`status status-${report.status.replaceAll(" ", "-").toLowerCase()}`}>{report.status}</span>
             </button>)}
           </div>
@@ -119,7 +135,7 @@ function Dashboard({ compact = false }: { compact?: boolean }) {
               <div className="col-span-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2"><span className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider text-slate-400"><History size={10} /> Storico stato</span><div className="mt-2 flex items-center gap-1.5 text-[8px] font-semibold text-slate-500">{statusSteps.map((status, index) => <div key={status} className="contents"><span className={`size-1.5 rounded-full ${status === "Risolta" ? "bg-emerald-500" : status === "Presa in carico" ? "bg-blue-500" : "bg-green"}`} /><span>{status}</span>{index < statusSteps.length - 1 && <span className="h-px flex-1 bg-slate-200" />}</div>)}</div></div>
               <div className="col-span-2 flex items-start gap-2 rounded-lg bg-emerald-50 px-2.5 py-2 text-[8px] leading-relaxed text-emerald-800"><Send className="mt-0.5 flex-none" size={11} /><span><b className="block">Anteprima notifica al cittadino</b>{notificationText}</span></div>
             </div>}
-            <button onClick={() => setResolved(true)} className={`flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition ${resolved ? "bg-emerald-100 text-emerald-700" : "bg-navy text-white hover:bg-navy-light"}`}>{resolved ? <><Check size={15} /> Segnalazione risolta</> : <><CheckCircle2 size={15} /> Segna come risolta</>}</button>
+            <button disabled={selected.status === "Risolta"} onClick={resolveSelected} className={`flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition ${selected.status === "Risolta" ? "cursor-default bg-emerald-100 text-emerald-700" : "bg-navy text-white hover:bg-navy-light"}`}>{selected.status === "Risolta" ? <><Check size={15} /> Già risolta</> : <><CheckCircle2 size={15} /> Segna come risolta</>}</button>
           </motion.div></AnimatePresence>
         </div>
       </div>
@@ -147,7 +163,7 @@ export function LandingPage() {
             <h1 className="mt-6 max-w-3xl font-display text-5xl font-extrabold leading-[1.05] tracking-[-.045em] text-navy md:text-7xl">Segnalare è più semplice. <span className="text-green">Rispondere è più ordinato.</span></h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-600">UrbanAlert collega cittadini e Comune in un unico spazio: per segnalare un problema, evitare duplicati, seguire l’intervento e sapere quando viene risolto.</p>
             <div className="mt-7 grid max-w-xl gap-2 sm:grid-cols-2">{["Segnalazione rapida e guidata", "Problemi già visibili sulla mappa", "Stato dell’intervento consultabile", "Aggiornamenti fino alla risoluzione"].map((item) => <span key={item} className="hero-value"><Check size={13} /> {item}</span>)}</div>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row"><Button onClick={goDemo}>Scopri il prototipo <ArrowRight size={16} /></Button><Button secondary>Richiedi una demo</Button></div>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row"><Button onClick={goDemo}>Valuta il prototipo <ArrowRight size={16} /></Button><ContactLink>Richiedi una presentazione</ContactLink></div>
             <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3 text-xs font-semibold text-slate-500"><span className="flex items-center gap-2"><CheckCircle2 size={15} className="text-green" /> Per cittadini e amministrazioni</span><span className="flex items-center gap-2"><CheckCircle2 size={15} className="text-green" /> Prototipo dimostrativo</span><span className="flex items-center gap-2"><CheckCircle2 size={15} className="text-green" /> Pensato per enti locali</span></div>
           </motion.div>
           <motion.div initial={{ opacity: 0, x: 40, rotate: 1 }} animate={{ opacity: 1, x: 0, rotate: 0 }} transition={{ duration: .75, delay: .15 }} className="relative"><div className="dashboard-halo" /><Dashboard compact /><motion.div animate={{ y: [0, -7, 0] }} transition={{ repeat: Infinity, duration: 4 }} className="floating-card left-[-18px] top-[18%]"><span className="grid size-8 place-items-center rounded-lg bg-emerald-50 text-green"><CheckCircle2 size={17} /></span><span><b>Segnalazione aggiornata</b><small>Il cittadino riceve una notifica</small></span></motion.div></motion.div>
@@ -211,7 +227,7 @@ export function LandingPage() {
 
       <section className="section"><div className="container"><motion.div {...reveal} className="credibility-panel"><div><span className="section-kicker">Pensato anche per piccoli Comuni</span><h2>Più chiarezza operativa, senza sostituire ciò che già funziona.</h2><p>UrbanAlert non nasce per sostituire i sistemi, le procedure o le responsabilità già presenti nell’ente. L’obiettivo è offrire un flusso più chiaro e organizzato per raccogliere, condividere e seguire le segnalazioni dei cittadini.</p><p>Il prototipo è pensato anche per amministrazioni con strutture snelle, dove le stesse persone seguono più attività e una visione condivisa può semplificare il lavoro quotidiano.</p></div><div className="credibility-points"><span><CheckCircle2 size={18} /><b>Si affianca ai processi esistenti</b><small>Senza imporre un nuovo modello organizzativo.</small></span><span><Users size={18} /><b>Adatto a gruppi di lavoro ridotti</b><small>Informazioni essenziali e accessibili in un unico punto.</small></span><span><Route size={18} /><b>Flusso semplice e leggibile</b><small>Dalla ricezione della segnalazione alla chiusura.</small></span></div></motion.div></div></section>
 
-      <section className="pb-10 pt-10"><div className="container"><motion.div {...reveal} className="cta-panel"><div className="cta-grid" /><div className="relative z-10 max-w-3xl"><span className="eyebrow eyebrow-light"><Sparkles size={14} /> Scopri UrbanAlert in modo concreto</span><h2 className="mt-5 font-display text-4xl font-extrabold tracking-tight text-white md:text-5xl">Scopri come potrebbe adattarsi al tuo Comune.</h2><p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-300">Esamina il prototipo e approfondisci con una presentazione dedicata come un flusso più chiaro potrebbe supportare cittadini e uffici.</p><div className="mt-8 flex flex-col gap-3 sm:flex-row"><Button onClick={goDemo}>Valuta il prototipo <ArrowRight size={16} /></Button><button className="button button-light">Richiedi una presentazione</button></div></div><Zap className="absolute bottom-[-35px] right-8 text-white/5" size={250} /></motion.div></div></section>
+      <section className="pb-10 pt-10"><div className="container"><motion.div {...reveal} className="cta-panel"><div className="cta-grid" /><div className="relative z-10 max-w-3xl"><span className="eyebrow eyebrow-light"><Sparkles size={14} /> Scopri UrbanAlert in modo concreto</span><h2 className="mt-5 font-display text-4xl font-extrabold tracking-tight text-white md:text-5xl">Scopri come potrebbe adattarsi al tuo Comune.</h2><p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-300">Esamina il prototipo e approfondisci con una presentazione dedicata come un flusso più chiaro potrebbe supportare cittadini e uffici.</p><div className="mt-8 flex flex-col gap-3 sm:flex-row"><Button onClick={goDemo}>Valuta il prototipo <ArrowRight size={16} /></Button><ContactLink light>Richiedi una presentazione</ContactLink></div></div><Zap className="absolute bottom-[-35px] right-8 text-white/5" size={250} /></motion.div></div></section>
 
       <footer className="border-t border-slate-200 py-9"><div className="container flex flex-col gap-5 text-xs text-slate-500 md:flex-row md:items-center md:justify-between"><Logo /><p className="max-w-2xl leading-relaxed">Progetto dimostrativo sviluppato per presentare un possibile sistema digitale di gestione delle segnalazioni urbane.</p><span>© 2026 UrbanAlert</span></div></footer>
     </main>
