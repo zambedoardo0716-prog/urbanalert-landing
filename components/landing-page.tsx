@@ -31,7 +31,7 @@ const dailyProblems = [
   ["Manca una visione condivisa tra gli uffici", Users, "Ogni settore può avere informazioni diverse sulla stessa situazione."],
 ];
 
-const presentationMailto = "mailto:INSERISCI_EMAIL?subject=Richiesta%20presentazione%20UrbanAlert";
+const contactEmail = "INSERISCI_EMAIL";
 
 const audiences = [
   ["Cittadini", UserRound, "Segnalano e seguono gli interventi."],
@@ -74,8 +74,22 @@ function Button({ children, secondary = false, onClick }: { children: React.Reac
   return <button onClick={onClick} className={secondary ? "button button-secondary" : "button button-primary"}>{children}</button>;
 }
 
-function ContactLink({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
-  return <a href={presentationMailto} className={light ? "button button-light" : "button button-secondary"}>{children}</a>;
+function ContactButton({ children, light = false, onCopy }: { children: React.ReactNode; light?: boolean; onCopy: () => void }) {
+  return <button onClick={onCopy} className={light ? "button button-light" : "button button-secondary"}>{children}</button>;
+}
+
+function SimplifiedFlow() {
+  const steps = [
+    ["Raccolta unica", Layers3, "Canali riuniti"],
+    ["Verifica duplicati", Eye, "Richieste simili"],
+    ["Assegnazione", Building2, "Ufficio competente"],
+    ["Aggiornamento", Bell, "Cittadino informato"],
+  ];
+  return <motion.div {...reveal} className="flow-panel">
+    <div className="mb-5 flex items-center justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[.15em] text-green">Flusso UrbanAlert</p><h3 className="mt-1 font-display text-lg font-extrabold text-navy">Da molti canali a un processo condiviso</h3></div><span className="status status-presa-in-carico">Tracciabile</span></div>
+    <div className="space-y-2.5">{steps.map(([title, Icon, text], index) => <motion.div key={title as string} initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: .15 + index * .1 }} className="flow-step"><span className="benefit-icon"><Icon size={17} /></span><span><b>{title as string}</b><small>{text as string}</small></span><span className={`ml-auto status ${index === 0 ? "status-ricevuta" : index === steps.length - 1 ? "status-risolta" : "status-presa-in-carico"}`}>{index === steps.length - 1 ? "Aggiornato" : index === 0 ? "Ricevuta" : "In corso"}</span></motion.div>)}</div>
+    <div className="mt-4 flex flex-wrap gap-2"><span className="flow-chip"><MapPin size={11} /> posizione</span><span className="flow-chip"><History size={11} /> storico</span><span className="flow-chip"><Send size={11} /> notifica</span></div>
+  </motion.div>;
 }
 
 function MiniMap({ large = false }: { large?: boolean }) {
@@ -147,10 +161,26 @@ export function LandingPage() {
   const [menu, setMenu] = useState(false);
   const [issue, setIssue] = useState(0);
   const [step, setStep] = useState(0);
+  const [contactToast, setContactToast] = useState(false);
   const selected = issues[issue];
   const goDemo = () => document.getElementById("demo-cittadino")?.scrollIntoView({ behavior: "smooth" });
+  const copyContactEmail = async () => {
+    try {
+      await navigator.clipboard.writeText(contactEmail);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = contactEmail;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+    setContactToast(true);
+    window.setTimeout(() => setContactToast(false), 3200);
+  };
   return (
     <main className="overflow-hidden">
+      <AnimatePresence>{contactToast && <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="contact-toast"><CheckCircle2 size={15} /> Email copiata: {contactEmail}</motion.div>}</AnimatePresence>
       <header className="fixed inset-x-0 top-0 z-50 border-b border-white/70 bg-white/80 backdrop-blur-xl">
         <div className="container flex h-[70px] items-center justify-between"><Logo /><nav className="hidden items-center gap-7 text-sm font-semibold text-slate-600 md:flex"><a href="#perche-serve">Perché serve</a><a href="#per-chi">Per chi</a><a href="#demo-cittadino">Demo cittadino</a><a href="#benefici">Benefici</a></nav><div className="hidden md:block"><Button onClick={goDemo}>Scopri il prototipo <ArrowRight size={15} /></Button></div><button className="md:hidden" onClick={() => setMenu(!menu)}>{menu ? <X /> : <Menu />}</button></div>
         {menu && <div className="border-t bg-white px-5 py-4 md:hidden"><div className="flex flex-col gap-4 text-sm font-semibold"><a href="#perche-serve">Perché serve</a><a href="#per-chi">Per chi</a><a href="#demo-cittadino">Demo cittadino</a><a href="#benefici">Benefici</a></div></div>}
@@ -163,7 +193,8 @@ export function LandingPage() {
             <h1 className="mt-6 max-w-3xl font-display text-5xl font-extrabold leading-[1.05] tracking-[-.045em] text-navy md:text-7xl">Segnalare è più semplice. <span className="text-green">Rispondere è più ordinato.</span></h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-600">UrbanAlert collega cittadini e Comune in un unico spazio: per segnalare un problema, evitare duplicati, seguire l’intervento e sapere quando viene risolto.</p>
             <div className="mt-7 grid max-w-xl gap-2 sm:grid-cols-2">{["Segnalazione rapida e guidata", "Problemi già visibili sulla mappa", "Stato dell’intervento consultabile", "Aggiornamenti fino alla risoluzione"].map((item) => <span key={item} className="hero-value"><Check size={13} /> {item}</span>)}</div>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row"><Button onClick={goDemo}>Valuta il prototipo <ArrowRight size={16} /></Button><ContactLink>Richiedi una presentazione</ContactLink></div>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row"><Button onClick={goDemo}>Valuta il prototipo <ArrowRight size={16} /></Button><ContactButton onCopy={copyContactEmail}>Richiedi una presentazione</ContactButton></div>
+            <p className="mt-3 text-xs font-semibold text-slate-500">Scrivici a {contactEmail}</p>
             <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3 text-xs font-semibold text-slate-500"><span className="flex items-center gap-2"><CheckCircle2 size={15} className="text-green" /> Per cittadini e amministrazioni</span><span className="flex items-center gap-2"><CheckCircle2 size={15} className="text-green" /> Prototipo dimostrativo</span><span className="flex items-center gap-2"><CheckCircle2 size={15} className="text-green" /> Pensato per enti locali</span></div>
           </motion.div>
           <motion.div initial={{ opacity: 0, x: 40, rotate: 1 }} animate={{ opacity: 1, x: 0, rotate: 0 }} transition={{ duration: .75, delay: .15 }} className="relative"><div className="dashboard-halo" /><Dashboard compact /><motion.div animate={{ y: [0, -7, 0] }} transition={{ repeat: Infinity, duration: 4 }} className="floating-card left-[-18px] top-[18%]"><span className="grid size-8 place-items-center rounded-lg bg-emerald-50 text-green"><CheckCircle2 size={17} /></span><span><b>Segnalazione aggiornata</b><small>Il cittadino riceve una notifica</small></span></motion.div></motion.div>
@@ -175,7 +206,7 @@ export function LandingPage() {
           <div className="mt-14 grid items-center gap-12 lg:grid-cols-[.8fr_.2fr_1fr]">
             <div className="space-y-3">{channels.map(([name, Icon, transform], i) => <motion.div key={name as string} initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * .1 }} className={`channel-card ${transform}`}><Icon size={17} /><span>{name as string}</span><span className="ml-auto size-2 rounded-full bg-rose-400" /></motion.div>)}</div>
             <motion.div whileInView={{ x: [0, 12, 0] }} transition={{ repeat: Infinity, duration: 2.4 }} className="hidden justify-center lg:flex"><ArrowRight className="text-emerald-300" size={38} /></motion.div>
-            <motion.div {...reveal} className="rounded-[28px] bg-white p-3 text-navy shadow-2xl shadow-black/25"><Dashboard compact /></motion.div>
+            <SimplifiedFlow />
           </div>
         </div>
       </section>
@@ -227,7 +258,7 @@ export function LandingPage() {
 
       <section className="section"><div className="container"><motion.div {...reveal} className="credibility-panel"><div><span className="section-kicker">Pensato anche per piccoli Comuni</span><h2>Più chiarezza operativa, senza sostituire ciò che già funziona.</h2><p>UrbanAlert non nasce per sostituire i sistemi, le procedure o le responsabilità già presenti nell’ente. L’obiettivo è offrire un flusso più chiaro e organizzato per raccogliere, condividere e seguire le segnalazioni dei cittadini.</p><p>Il prototipo è pensato anche per amministrazioni con strutture snelle, dove le stesse persone seguono più attività e una visione condivisa può semplificare il lavoro quotidiano.</p></div><div className="credibility-points"><span><CheckCircle2 size={18} /><b>Si affianca ai processi esistenti</b><small>Senza imporre un nuovo modello organizzativo.</small></span><span><Users size={18} /><b>Adatto a gruppi di lavoro ridotti</b><small>Informazioni essenziali e accessibili in un unico punto.</small></span><span><Route size={18} /><b>Flusso semplice e leggibile</b><small>Dalla ricezione della segnalazione alla chiusura.</small></span></div></motion.div></div></section>
 
-      <section className="pb-10 pt-10"><div className="container"><motion.div {...reveal} className="cta-panel"><div className="cta-grid" /><div className="relative z-10 max-w-3xl"><span className="eyebrow eyebrow-light"><Sparkles size={14} /> Scopri UrbanAlert in modo concreto</span><h2 className="mt-5 font-display text-4xl font-extrabold tracking-tight text-white md:text-5xl">Scopri come potrebbe adattarsi al tuo Comune.</h2><p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-300">Esamina il prototipo e approfondisci con una presentazione dedicata come un flusso più chiaro potrebbe supportare cittadini e uffici.</p><div className="mt-8 flex flex-col gap-3 sm:flex-row"><Button onClick={goDemo}>Valuta il prototipo <ArrowRight size={16} /></Button><ContactLink light>Richiedi una presentazione</ContactLink></div></div><Zap className="absolute bottom-[-35px] right-8 text-white/5" size={250} /></motion.div></div></section>
+      <section className="pb-10 pt-10"><div className="container"><motion.div {...reveal} className="cta-panel"><div className="cta-grid" /><div className="relative z-10 max-w-3xl"><span className="eyebrow eyebrow-light"><Sparkles size={14} /> Scopri UrbanAlert in modo concreto</span><h2 className="mt-5 font-display text-4xl font-extrabold tracking-tight text-white md:text-5xl">Scopri come potrebbe adattarsi al tuo Comune.</h2><p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-300">Esamina il prototipo e approfondisci con una presentazione dedicata come un flusso più chiaro potrebbe supportare cittadini e uffici.</p><div className="mt-8 flex flex-col gap-3 sm:flex-row"><Button onClick={goDemo}>Valuta il prototipo <ArrowRight size={16} /></Button><ContactButton light onCopy={copyContactEmail}>Richiedi una presentazione</ContactButton></div><p className="mt-4 text-xs font-semibold text-slate-300">Scrivici a {contactEmail}</p></div><Zap className="absolute bottom-[-35px] right-8 text-white/5" size={250} /></motion.div></div></section>
 
       <footer className="border-t border-slate-200 py-9"><div className="container flex flex-col gap-5 text-xs text-slate-500 md:flex-row md:items-center md:justify-between"><Logo /><p className="max-w-2xl leading-relaxed">Progetto dimostrativo sviluppato per presentare un possibile sistema digitale di gestione delle segnalazioni urbane.</p><span>© 2026 UrbanAlert</span></div></footer>
     </main>
